@@ -3,16 +3,14 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { ExtractionResponse } from "../types";
 
 export const extractNumbersFromImage = async (base64Image: string): Promise<ExtractionResponse> => {
-  // Check if API key exists in environment
   const apiKey = process.env.API_KEY;
   
+  // Explicitly check for empty or missing key
   if (!apiKey || apiKey === 'undefined' || apiKey.trim() === '') {
-    throw new Error("API Key missing! Please go to AI Studio 'API keys' tab and create a key first.");
+    throw new Error("SETUP_REQUIRED: API Key is missing. Please create a key in AI Studio 'API keys' tab.");
   }
 
-  // Initialize with the provided key
   const ai = new GoogleGenAI({ apiKey });
-  
   const mimeType = base64Image.match(/data:([^;]+);/)?.[1] || 'image/png';
   const base64Data = base64Image.split(',')[1] || base64Image;
 
@@ -28,13 +26,12 @@ export const extractNumbersFromImage = async (base64Image: string): Promise<Extr
             },
           },
           {
-            text: "Identify and extract all phone numbers from the provided image. For each number, determine the country based on its formatting and international calling code. Output the results strictly in JSON format as follows: { \"numbers\": [ { \"number\": \"string\", \"country\": \"string\" } ] }",
+            text: "Extract all phone numbers from the image and identify their country. Output JSON: { \"numbers\": [ { \"number\": \"string\", \"country\": \"string\" } ] }",
           },
         ],
       },
       config: {
         responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 0 },
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -56,26 +53,23 @@ export const extractNumbersFromImage = async (base64Image: string): Promise<Extr
     });
 
     const textOutput = response.text || '{"numbers":[]}';
-    const parsed = JSON.parse(textOutput.trim());
-    
-    if (!parsed.numbers) return { numbers: [], summary: "" };
-    return parsed as ExtractionResponse;
+    return JSON.parse(textOutput.trim()) as ExtractionResponse;
     
   } catch (error: any) {
-    console.error("Gemini Extraction Error:", error);
+    console.error("Gemini Error:", error);
+    const msg = error.message || "";
     
-    const message = error.message || "";
+    if (msg.includes("401") || msg.includes("API_KEY_INVALID")) {
+      throw new Error("INVALID_KEY: Your API key is invalid. Please generate a new one.");
+    }
+    if (msg.includes("429")) {
+      throw new Error("RATE_LIMIT: Too many requests. Wait a moment.");
+    }
+    if (msg.includes("model not found") || msg.includes("404")) {
+      // Fallback or specific model error
+      throw new Error("MODEL_ERROR: The AI model is currently unavailable in your region.");
+    }
     
-    if (message.includes("401") || message.includes("API_KEY_INVALID") || message.includes("not found")) {
-      throw new Error("Invalid API Key. Please generate a new key in AI Studio 'API keys' tab.");
-    }
-    if (message.includes("403")) {
-      throw new Error("Permission denied. Check if your API key has access to Gemini Flash.");
-    }
-    if (message.includes("429")) {
-      throw new Error("Rate limit reached. Please wait a few seconds.");
-    }
-    
-    throw new Error("Could not process image. Ensure it's clear and contains numbers.");
+    throw new Error("Analysis failed. Make sure the image is clear and try again.");
   }
 };
