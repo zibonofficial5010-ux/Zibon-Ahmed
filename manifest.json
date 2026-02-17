@@ -1,0 +1,14 @@
+
+{
+  "manifest_version": 3,
+  "name": "SnapExtract AI",
+  "version": "1.0.1",
+  "description": "Extract phone numbers and identify countries from images using AI.",
+  "action": {
+    "default_popup": "index.html"
+  },
+  "permissions": [
+    "clipboardRead",
+    "storage"
+  ]
+}

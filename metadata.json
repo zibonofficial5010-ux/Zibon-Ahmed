@@ -1,0 +1,7 @@
+{
+  "name": "Vision Number Extractor",
+  "description": "An advanced tool to extract phone numbers from images and identify their respective countries using Gemini AI.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
